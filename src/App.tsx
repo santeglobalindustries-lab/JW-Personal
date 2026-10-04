@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import {
   Activity,
@@ -29,11 +29,11 @@ import { Router as WouterRouter, Route, Switch, useLocation } from 'wouter';
 import doctorPortrait from '@/assets/WhatsApp_Image_2026-09-08_at_15.19.02_1788877913019.jpeg';
 import doctorAtClinic from '@/assets/WhatsApp_Image_2026-09-08_at_15.18.55_1788877913019.jpeg';
 
-const PHONE_DISPLAY = '+91 94227 37498';
-const PHONE_LINK = '+919422737498';
+const PHONE_DISPLAY = '+91 92842 53781';
+const PHONE_LINK = '+919284253781';
 const EMAIL = 'drjidnyasawani@gmail.com';
-const CLINIC_EMAIL = 'govindhosptialdhule@gmail.com';
-const ADDRESS = 'Govind Hospital, Shree Baba (Appa) Varade Doctor House, First Floor, 80 Feet Road, Parola Rd, opposite Parchi Medical, Dhule, Maharashtra 424001';
+const CLINIC_EMAIL = 'govindhospitaldhule@gmail.com';
+const ADDRESS = 'Govind Hospital, Shree Baba (Appa) Varade Doctor House, First Floor, 80 Feet Road, Near to Dr.Shubham Bhamre hospital, Dhule, Maharashtra 424001';
 const DIRECTIONS_URL = 'https://maps.app.goo.gl/HUKWMfr4UUKZGCLA8';
 const MAP_EMBED_URL = 'https://www.google.com/maps?q=Govind+Hospital,+Parola+Rd,+Dhule,+Maharashtra+424001&ll=20.9010103,74.782386&z=17&output=embed';
 const WHATSAPP_URL = `https://wa.me/${PHONE_LINK}?text=Hello%20Dr.%20Jidnyasa%2C%20I%20would%20like%20to%20know%20more%20about%20a%20consultation.`;
@@ -43,13 +43,82 @@ const SOCIAL_LINKS = [
   { label: 'YouTube', href: 'https://www.youtube.com/@Dr.JidnyasaWani', icon: Youtube },
 ];
 
+// Hospital photo slideshow: drop 3 photos named clinic-1.jpg, clinic-2.jpg, clinic-3.jpg
+// (jpg / jpeg / png / webp) into src/assets and they are picked up automatically, in name order.
+const clinicPhotoModules = import.meta.glob('./assets/clinic-*.{jpg,jpeg,png,webp,avif}', {
+  eager: true,
+  import: 'default',
+}) as Record<string, string>;
+const clinicPhotos = Object.keys(clinicPhotoModules).sort().map((key) => clinicPhotoModules[key]);
+
+function ClinicSlideshow({ fallback }: { fallback: string }) {
+  const slides = clinicPhotos.length ? clinicPhotos : [fallback];
+  const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+
+  const go = (index: number) => setActive((index + slides.length) % slides.length);
+
+  useEffect(() => {
+    if (slides.length < 2 || paused) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const timer = window.setTimeout(() => setActive((i) => (i + 1) % slides.length), 4500);
+    return () => window.clearTimeout(timer);
+  }, [active, paused, slides.length]);
+
+  return (
+    <div
+      role="region"
+      aria-roledescription="carousel"
+      aria-label="Photos of Govind Hospital"
+      className="relative mt-8 aspect-[4/3] overflow-hidden rounded-[2rem] border border-[hsl(var(--primary)/.14)] bg-[hsl(var(--card))] sm:aspect-[16/10] lg:aspect-[4/3]"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+      onTouchEnd={(e) => {
+        if (touchStartX.current === null) return;
+        const dx = e.changedTouches[0].clientX - touchStartX.current;
+        touchStartX.current = null;
+        if (Math.abs(dx) > 40) go(active + (dx < 0 ? 1 : -1));
+      }}
+    >
+      {slides.map((src, i) => (
+        <img
+          key={src}
+          src={src}
+          alt={`Govind Hospital, Dhule - photo ${i + 1} of ${slides.length}`}
+          aria-hidden={i !== active}
+          loading={i === 0 ? 'eager' : 'lazy'}
+          className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-1000 ${i === active ? 'opacity-100' : 'opacity-0'}`}
+        />
+      ))}
+      {slides.length > 1 && (
+        <div className="absolute inset-x-0 bottom-2 flex justify-center">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => go(i)}
+              aria-label={`Show photo ${i + 1}`}
+              aria-current={i === active}
+              className="grid h-6 w-6 place-items-center"
+            >
+              <span className={`block h-2 rounded-full shadow-[0_0_4px_rgba(0,0,0,.35)] transition-all duration-300 ${i === active ? 'w-6 bg-white' : 'w-2 bg-white/65'}`} />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const expertise = [
   { title: 'Diabetes & thyroid care', copy: 'Clear, practical plans for everyday control and long-term health.', icon: Activity },
   { title: 'Fever & infections', copy: 'Thoughtful assessment when symptoms are new, persistent or worrying.', icon: ShieldCheck },
   { title: 'Blood pressure & heart health', copy: 'Steady monitoring that helps families feel in control.', icon: HeartPulse },
   { title: 'Respiratory concerns', copy: 'Support for cough, asthma, breathlessness and seasonal illness.', icon: Sparkles },
-  { title: 'Digestive health', copy: 'Kind, unhurried care for acidity, pain and changing digestion.', icon: Stethoscope },
-  { title: 'Preventive medicine', copy: 'Health reviews designed around your life, not just a report.', icon: Check },
+  { title: 'Gastrointestinal disease', copy: 'Careful diagnosis and treatment for acidity, abdominal pain and ongoing digestive complaints.', icon: Stethoscope },
+  { title: 'Liver & Kidney disease', copy: 'Timely assessment and long-term follow-up for liver and kidney conditions.', icon: Check },
 ];
 
 const facilities = [
@@ -63,19 +132,19 @@ const facilities = [
 
 const testimonials = [
   {
-    quote: 'Dr. Jidnyasa listens without rushing. We left with a plan we could actually follow at home.',
-    author: 'A patient’s family',
-    detail: 'Consultation in Dhule',
+    quote: 'The treatment started promptly and was adjusted at follow-up based on how I was responding. I felt well looked after throughout.',
+    author: 'Mr. Sahil Rizwani',
+    detail: 'Treatment at Govind Hospital',
   },
   {
-    quote: 'Her explanations made my mother feel safe. The care was clinical, but always personal.',
-    author: 'A grateful daughter',
-    detail: 'Care for an older adult',
+    quote: 'The nebulisation was done calmly, and my oxygen, BP and ECG were checked throughout. I felt safe the whole time.',
+    author: 'Mrs. Dhrupata Patil',
+    detail: 'Nebulisation and monitoring',
   },
   {
-    quote: 'I finally understood what my reports meant and what to do next. That clarity made a big difference.',
-    author: 'A patient',
-    detail: 'Medicine consultation',
+    quote: 'The staff were polite, patient and well organised from reception onwards. The clinic was clean and welcoming.',
+    author: 'Mrs. Sunita R Mahajan',
+    detail: 'Visit to Govind Hospital',
   },
 ];
 
@@ -151,8 +220,8 @@ function Home() {
               <span className="font-display text-lg">J</span>
             </span>
             <span className="leading-none">
-              <span className="block font-display text-lg text-[hsl(var(--primary))]">Dr. Jidnyasa</span>
-              <span className="eyebrow mt-1 block text-[hsl(var(--muted-foreground))]">General Medicine</span>
+              <span className="block font-display text-lg text-[hsl(var(--primary))]">Dr. Jidnyasa Wani</span>
+<span className="mt-1 block text-[13px] font-semibold uppercase tracking-[.1em] text-[hsl(var(--muted-foreground))]">MBBS MD Medicine</span>
             </span>
           </a>
 
@@ -209,7 +278,7 @@ function Home() {
                 Medicine, made <em className="font-display text-[hsl(var(--accent-foreground))]">human.</em>
               </h1>
                <p className="reveal reveal-delay-2 mt-7 max-w-[560px] text-lg leading-8 text-[hsl(var(--muted-foreground))] lg:text-xl">
-                 Dr. Jidnyasa Joshi Wani is a General Medicine Specialist and the Owner &amp; Managing Physician of Govind Hospital, Dhule, offering thoughtful, evidence-led care for every stage of adult life.
+                 Dr. Jidnyasa Joshi Wani is a General Medicine Specialist and Managing Physician of Govind Hospital, Dhule, offering thoughtful, evidence-led care for every stage of adult life.
               </p>
               <div className="reveal reveal-delay-3 mt-9 flex flex-col gap-3 sm:flex-row">
                 <a href={`tel:${PHONE_LINK}`} className="inline-flex items-center justify-center gap-2 rounded-full bg-[hsl(var(--primary))] px-6 py-4 text-sm font-bold text-[hsl(var(--primary-foreground))] shadow-[0_16px_34px_hsl(var(--primary)/.18)] transition-all hover:-translate-y-1 hover:shadow-[0_20px_40px_hsl(var(--primary)/.24)]" data-testid="button-hero-call">
@@ -237,12 +306,12 @@ function Home() {
                 <img src={doctorPortrait} alt="Dr. Jidnyasa Joshi Wani in her clinic" className="absolute inset-0 h-full w-full object-cover object-[center_22%] opacity-95" />
                 <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[hsl(var(--primary)/.88)] via-[hsl(var(--primary)/.18)] to-transparent" />
                 <div className="absolute inset-x-0 bottom-10 text-center text-[hsl(var(--primary-foreground))]">
-                  <div className="font-display text-3xl">Dr. Jidnyasa Joshi Wani</div>
+                  <div className="font-display text-[1.375rem] leading-tight sm:text-3xl">Dr. Jidnyasa Joshi Wani</div>
                   <div className="mt-2 text-xs uppercase tracking-[.24em] text-[hsl(var(--accent))]">MBBS · MD (Medicine)</div>
                 </div>
                 <div className="portrait-orbit absolute left-1/2 top-1/2 h-[90%] w-[90%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-[hsl(var(--accent)/.28)]" />
               </div>
-              <div className="absolute -bottom-5 -left-4 flex items-center gap-3 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-4 py-3 shadow-[0_16px_36px_hsl(var(--primary)/.12)] lg:-left-12">
+              <div className="relative mx-auto mt-5 flex w-max items-center gap-3 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-4 py-3 shadow-[0_16px_36px_hsl(var(--primary)/.12)] lg:absolute lg:-bottom-5 lg:-left-12 lg:mx-0 lg:mt-0">
                 <span className="grid h-10 w-10 place-items-center rounded-full bg-[hsl(var(--secondary))] text-[hsl(var(--primary))]"><ShieldCheck size={19} /></span>
                 <span><span className="block text-xs font-bold text-[hsl(var(--primary))]">Evidence-led</span><span className="block text-xs text-[hsl(var(--muted-foreground))]">Personal attention</span></span>
               </div>
@@ -258,7 +327,7 @@ function Home() {
             {[
               ['01', 'MBBS · MD (Medicine)', 'Specialist training'],
               ['02', 'Dhule, Maharashtra', 'Care close to home'],
-               ['03', 'Govind Hospital, Dhule', 'Owned & led by Dr. Jidnyasa'],
+               ['03', 'Govind Hospital, Dhule', 'Led by Dr. Jidnyasa'],
             ].map(([number, title, detail], index) => (
               <div key={number} className={`reveal flex items-center gap-4 border-[hsl(var(--border))] py-6 sm:py-7 ${index > 0 ? 'sm:border-l sm:pl-8 lg:pl-12' : ''} ${index < 2 ? 'border-b sm:border-b-0' : ''}`} data-testid={`text-highlight-${number}`}>
                 <span className="font-mono-custom text-xs text-[hsl(var(--accent-foreground)/.72)]">{number}</span>
@@ -275,11 +344,10 @@ function Home() {
               <h2 className="mt-6 max-w-md font-display text-5xl leading-[1.02] tracking-[-.045em] text-[hsl(var(--primary))] lg:text-6xl">Good medicine begins with a good conversation.</h2>
             </div>
             <div className="reveal reveal-delay-1 max-w-2xl">
-               <p className="text-xl leading-9 text-[hsl(var(--foreground)/.8)]">As a General Medicine Specialist and the Owner &amp; Managing Physician of Govind Hospital, Dr. Jidnyasa brings together careful clinical reasoning and the kind of warmth that helps people ask the questions they were nervous to say out loud.</p>
-              <p className="mt-6 leading-8 text-[hsl(var(--muted-foreground))]">Whether you are managing a long-term condition, feeling unwell today, or looking for a clear second opinion, the consultation is a space to understand what is happening and decide on the next step together.</p>
+               <p className="text-xl leading-9 text-[hsl(var(--foreground)/.8)]">As a General Medicine Specialist and Managing Physician of Govind Hospital, Dr. Jidnyasa brings together careful clinical reasoning and the kind of warmth that helps people ask the questions they were nervous to say out loud.</p>
+              <p className="mt-6 leading-8 text-[hsl(var(--muted-foreground))]">Whether you are managing a long-term condition, feeling unwell today, or looking for a clear opinion, the consultation is a space to understand what is happening and decide on the next step together.</p>
               <div className="mt-9 grid grid-cols-2 gap-4 border-t border-[hsl(var(--border))] pt-6">
-                <div><div className="font-display text-3xl text-[hsl(var(--primary))]">MBBS</div><div className="mt-1 text-xs uppercase tracking-[.12em] text-[hsl(var(--muted-foreground))]">Medical degree</div></div>
-                <div><div className="font-display text-3xl text-[hsl(var(--primary))]">MD</div><div className="mt-1 text-xs uppercase tracking-[.12em] text-[hsl(var(--muted-foreground))]">General Medicine</div></div>
+                <div><div className="font-display text-3xl text-[hsl(var(--primary))]">MBBS, MD Medicine</div><div className="mt-1 text-xs uppercase tracking-[.12em] text-[hsl(var(--muted-foreground))]">Medical degree</div></div>
               </div>
                 <div className="mt-8 flex flex-wrap items-center gap-4">
                   <span className="text-xs font-bold uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">Follow Dr. Jidnyasa</span>
@@ -339,7 +407,7 @@ function Home() {
 
         <section className="bg-[hsl(var(--secondary)/.55)] px-5 py-24 lg:px-10 lg:py-32">
           <div className="mx-auto grid max-w-7xl gap-14 lg:grid-cols-[.75fr_1.25fr] lg:gap-28">
-             <div className="reveal"><SectionLabel>Govind Hospital · Dhule</SectionLabel><h2 className="mt-6 max-w-sm font-display text-5xl leading-[1.02] tracking-[-.045em] text-[hsl(var(--primary))]">A hospital shaped around thoughtful care.</h2><p className="mt-6 max-w-sm leading-7 text-[hsl(var(--muted-foreground))]">Owned and led by Dr. Jidnyasa, Govind Hospital brings dependable medical support and a welcoming environment together under one roof.</p><div className="mt-8 overflow-hidden rounded-[2rem] border border-[hsl(var(--primary)/.14)] bg-[hsl(var(--card))]"><img src={doctorAtClinic} alt="Dr. Jidnyasa Joshi Wani at Govind Hospital in Dhule" className="h-64 w-full object-cover object-[center_55%] sm:h-72" /></div></div>
+             <div className="reveal"><SectionLabel>Govind Hospital · Dhule</SectionLabel><h2 className="mt-6 max-w-sm font-display text-5xl leading-[1.02] tracking-[-.045em] text-[hsl(var(--primary))]">A hospital shaped around thoughtful care.</h2><p className="mt-6 max-w-sm leading-7 text-[hsl(var(--muted-foreground))]">Led by Dr. Jidnyasa, Govind Hospital brings dependable medical support and a welcoming environment together under one roof.</p><ClinicSlideshow fallback={doctorAtClinic} /></div>
             <div className="reveal reveal-delay-1 grid gap-x-10 gap-y-0 sm:grid-cols-2">
               {facilities.map((facility, index) => <div key={facility} className="flex gap-4 border-b border-[hsl(var(--primary)/.14)] py-5"><span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--accent))]"><Check size={13} strokeWidth={3} /></span><span className="text-sm leading-6 text-[hsl(var(--foreground)/.76)]">{facility}</span></div>)}
             </div>
@@ -367,7 +435,7 @@ function Home() {
                   </div>
                 </div>
                 <div className="rounded-3xl border border-[hsl(var(--primary-foreground)/.15)] p-6"><MapPin size={20} className="text-[hsl(var(--accent))]" /><div className="mt-6 text-xs uppercase tracking-[.14em] text-[hsl(var(--primary-foreground)/.52)]">Clinic location</div><address className="mt-2 not-italic leading-7 text-[hsl(var(--primary-foreground)/.9)]">{ADDRESS}</address></div>
-                <div className="rounded-3xl border border-[hsl(var(--primary-foreground)/.15)] p-6"><Clock3 size={20} className="text-[hsl(var(--accent))]" /><div className="mt-6 text-xs uppercase tracking-[.14em] text-[hsl(var(--primary-foreground)/.52)]">Consultation hours</div><div className="mt-2 leading-7 text-[hsl(var(--primary-foreground)/.9)]">Monday – Saturday<br />10:00 am – 1:00 pm<br />5:00 pm – 8:00 pm</div></div>
+                <div className="rounded-3xl border border-[hsl(var(--primary-foreground)/.15)] p-6"><Clock3 size={20} className="text-[hsl(var(--accent))]" /><div className="mt-6 text-xs uppercase tracking-[.14em] text-[hsl(var(--primary-foreground)/.52)]">Consultation hours</div><div className="mt-2 leading-7 text-[hsl(var(--primary-foreground)/.9)]">Monday – Saturday<br />10:00 am – 3:00 pm<br />6:00 pm – 9:00 pm</div></div>
               </div>
             </div>
              <div className="reveal mt-20 grid gap-7 border-t border-[hsl(var(--primary-foreground)/.15)] pt-7 sm:grid-cols-2 lg:grid-cols-4"><a href={`mailto:${EMAIL}`} className="flex min-w-0 items-center gap-3 break-all text-sm text-[hsl(var(--primary-foreground)/.78)] hover:text-[hsl(var(--accent))]" data-testid="link-email"><Mail size={17} className="shrink-0" /> {EMAIL}</a><a href={`mailto:${CLINIC_EMAIL}`} className="flex min-w-0 items-center gap-3 break-all text-sm text-[hsl(var(--primary-foreground)/.78)] hover:text-[hsl(var(--accent))]" data-testid="link-clinic-email"><Mail size={17} className="shrink-0" /> {CLINIC_EMAIL}</a><a href={`tel:${PHONE_LINK}`} className="flex items-center gap-3 text-sm text-[hsl(var(--primary-foreground)/.78)] hover:text-[hsl(var(--accent))]" data-testid="link-phone"><Phone size={17} /> {PHONE_DISPLAY}</a><div className="flex items-center gap-3 text-sm text-[hsl(var(--primary-foreground)/.78)]"><CalendarDays size={17} /> Appointments by phone</div></div>
@@ -377,7 +445,7 @@ function Home() {
 
       <footer className="bg-[hsl(var(--primary))] px-5 pb-24 text-[hsl(var(--primary-foreground))] sm:pb-10 lg:px-10">
         <div className="mx-auto flex max-w-7xl flex-col justify-between gap-7 border-t border-[hsl(var(--primary-foreground)/.15)] pt-8 sm:flex-row sm:items-end">
-           <div><div className="font-display text-2xl">Dr. Jidnyasa Joshi Wani</div><div className="mt-2 text-sm text-[hsl(var(--primary-foreground)/.58)]">MBBS, MD (Medicine) · Owner &amp; Managing Physician, Govind Hospital</div><div className="mt-5"><SocialLinks light /></div></div>
+           <div><div className="font-display text-2xl">Dr. Jidnyasa Joshi Wani</div><div className="mt-2 text-sm text-[hsl(var(--primary-foreground)/.58)]">MBBS, MD (Medicine) · Managing Physician, Govind Hospital</div><div className="mt-5"><SocialLinks light /></div></div>
           <div className="text-left text-xs leading-6 text-[hsl(var(--primary-foreground)/.5)] sm:text-right">For appointments and clinic timings,<br />please call ahead.</div>
         </div>
       </footer>
